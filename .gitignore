@@ -1,0 +1,24 @@
+# 1. Dependências (Peso inútil)
+# O GitHub não precisa disso, quem baixar o projeto só precisa rodar 'npm install'
+node_modules/
+
+# 2. Variáveis de Ambiente e Segurança (Crítico)
+# Aqui vão ficar as chaves do seu banco de dados Firebase. NUNCA envie para o Git.
+.env
+.env.*
+
+# 3. Código Compilado do TypeScript
+# Nós escrevemos em TS, mas o servidor roda em JS. O TS gera a pasta 'dist' automaticamente.
+# Como é código gerado, não enviamos para o repositório.
+dist/
+build/
+
+# 4. Logs de erro gerados pelo NPM (Lixo digital)
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+
+# 5. Arquivos de Sistema Operacional (Limpeza)
+# O Mac e o Windows geram arquivos invisíveis nas pastas. Não precisamos deles no projeto.
+.DS_Store
+Thumbs.db
