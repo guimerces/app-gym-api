@@ -7,7 +7,7 @@ export class TreinoController {
   constructor(private treinoRepository: ITreinoRepository) {}
 
   // APLICAÇÃO DO PADRÃO CONTROLLER
-  // Ele recebe a requisição (req) da internet, mas não suja a mão com regras complexas.
+
   async sugerirProximoTreino(req: Request, res: Response) {
     try {
       // Extraímos o ID do usuário (geralmente vem da URL ou do token de login)
@@ -42,7 +42,7 @@ export class TreinoController {
           if (!fichaPadrao)
             throw new Error("Ficha A não configurada no banco!");
 
-          return {
+          return res.status(200).json({
             sugestao: "A",
             mensagem:
               "Sua ficha anterior foi alterada. Vamos recomeçar pelo Treino A!",
@@ -51,7 +51,7 @@ export class TreinoController {
               cargaSugerida: 10,
               dicaDoCoach: "Recomeçando ciclo.",
             })),
-          };
+          });
         }
 
         // 1. Pegamos o que veio do banco
@@ -146,6 +146,162 @@ export class TreinoController {
       return res
         .status(500)
         .json({ message: "Erro Interno no Servidor", error });
+    }
+  }
+
+  async salvarTreinoFeito(req: Request, res: Response) {
+    try {
+      // 1. Quem é o usuário? (Vem da URL). Garantimos uma string como prometido no contrato
+      const usuarioId = req.params.usuarioId as string;
+
+      // 2. O que ele levantou hoje? (Vem do corpo da requisição - JSON do celular)
+      const dadosDoCelular = req.body;
+
+      // 3. O Guarda-Costas: O aplicativo mandou tudo o que precisamos?
+      if (!dadosDoCelular.treinoId || !dadosDoCelular.exerciciosExecutados) {
+        return res.status(400).json({
+          erro: "Faltam dados obrigatórios. Certifique-se de enviar 'treinoId' e a lista de 'exerciciosExecutados'.",
+        });
+      }
+
+      // 4. Montamos o objeto perfeitamente tipado para o Banco (IExecucaoTreino)
+      const novaExecucao = {
+        // Não passamos o "id", pois deixamos o Firebase gerar um novinho na hora!
+        usuarioId: usuarioId,
+        treinoId: dadosDoCelular.treinoId, // A chave estrangeira perfeita
+        dataExecucao: new Date(), // Registramos a hora exata de AGORA
+        exerciciosExecutados: dadosDoCelular.exerciciosExecutados,
+      };
+
+      // 5. Delegamos ao Repositório o trabalho sujo de gravar no Firebase
+      await this.treinoRepository.salvarExecucao(novaExecucao);
+
+      // 6. Respondemos ao aplicativo com o Status 201 (Created - Criado com sucesso)
+      return res.status(201).json({
+        mensagem: "🔥 Treino salvo com sucesso, monstro!",
+        fichaFeita: novaExecucao.treinoId,
+      });
+    } catch (error) {
+      console.error("Erro ao salvar o treino:", error);
+      return res
+        .status(500)
+        .json({ erro: "Erro interno do servidor ao tentar salvar o treino." });
+    }
+  }
+
+  async criarFichaTemplate(req: Request, res: Response) {
+    try {
+      const dadosDoProfessor = req.body;
+
+      // 1. O Guarda-Costas: O Professor preencheu tudo?
+      if (
+        !dadosDoProfessor.usuarioId ||
+        !dadosDoProfessor.tipo ||
+        !dadosDoProfessor.exercicios
+      ) {
+        return res.status(400).json({
+          erro: "Dados incompletos. Informe usuarioId, tipo (A, B ou C) e a lista de exercicios.",
+        });
+      }
+
+      // 2. Montamos a "Planta da Casa" (O Template oficial)
+      const novaFicha = {
+        // Criamos aquele ID inteligente e previsível
+        id: `FICHA_${dadosDoProfessor.tipo}_${dadosDoProfessor.usuarioId}`,
+        usuarioId: dadosDoProfessor.usuarioId,
+        tipo: dadosDoProfessor.tipo,
+        exercicios: dadosDoProfessor.exercicios,
+      };
+
+      // 3. Mandamos o Repositório guardar na gaveta de Fichas
+      await this.treinoRepository.salvarFichaTemplate(novaFicha);
+
+      // 4. Respondemos ao painel do Professor que deu tudo certo!
+      return res.status(201).json({
+        mensagem: `Sucesso! Ficha ${novaFicha.tipo} criada / atualizada para o aluno ${novaFicha.usuarioId}.`,
+        treinoId: novaFicha.id,
+      });
+    } catch (error) {
+      console.error("Erro ao criar a ficha:", error);
+      return res
+        .status(500)
+        .json({ erro: "Erro interno ao tentar salvar a ficha." });
+    }
+  }
+
+  async listarFichasDoAluno(req: Request, res: Response) {
+    try {
+      const usuarioId = req.params.usuarioId as string;
+      const fichas =
+        await this.treinoRepository.buscarFichasPorUsuario(usuarioId);
+
+      return res.status(200).json(fichas);
+    } catch (error) {
+      console.error("Erro ao listar fichas:", error);
+      return res
+        .status(500)
+        .json({ erro: "Erro interno ao buscar as fichas." });
+    }
+  }
+
+  async deletarFicha(req: Request, res: Response) {
+    try {
+      const fichaId = req.params.id as string;
+      await this.treinoRepository.deletarFicha(fichaId);
+
+      return res
+        .status(200)
+        .json({ mensagem: `Ficha ${fichaId} apagada com sucesso.` });
+    } catch (error) {
+      console.error("Erro ao deletar ficha:", error);
+      return res
+        .status(500)
+        .json({ erro: "Erro interno ao tentar deletar a ficha." });
+    }
+  }
+
+  async atualizarTreinoFeito(req: Request, res: Response) {
+    try {
+      const execucaoId = req.params.id as string;
+      const { exerciciosExecutados } = req.body;
+
+      // Validação MVP: Mandou a lista nova?
+      if (!exerciciosExecutados || exerciciosExecutados.length === 0) {
+        return res
+          .status(400)
+          .json({ erro: "Envie a lista completa de exercícios corrigida." });
+      }
+
+      await this.treinoRepository.atualizarExecucao(
+        execucaoId,
+        exerciciosExecutados,
+      );
+
+      return res
+        .status(200)
+        .json({ mensagem: "Pesos atualizados com sucesso, monstro!" });
+    } catch (error) {
+      console.error("Erro ao atualizar treino:", error);
+      return res
+        .status(500)
+        .json({ erro: "Erro interno ao atualizar os pesos." });
+    }
+  }
+
+  async popularBanco(req: Request, res: Response) {
+    try {
+      // O Controller manda o Repositório trabalhar
+      await this.treinoRepository.popularBancoDeTeste();
+
+      // O Controller responde para a Internet que deu tudo certo
+      return res
+        .status(201)
+        .json({ mensagem: "✅ Multiverso do Guilherme criado com sucesso!" });
+    } catch (error) {
+      console.error("Erro ao popular banco:", error);
+      return res
+        .status(500)
+        .json({ erro: "Erro ao injetar os dados de teste." });
     }
   }
 }

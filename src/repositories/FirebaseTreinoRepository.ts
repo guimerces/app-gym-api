@@ -7,8 +7,7 @@ import {
 } from "./ITreinoRepository";
 import * as admin from "firebase-admin";
 
-// 1. Trazemos a chave do cofre para o código
-// (O caminho "../../" volta da pasta repositories, depois da pasta src, e acha o arquivo na raiz)
+// busca a chave do BD
 const serviceAccount = require("../../firebase-key.json");
 
 // 2. Iniciamos a conexão com os servidores do Google - Objeto admin abstrai toda complexidade do login
@@ -19,12 +18,12 @@ if (!admin.apps.length) {
   });
 }
 
-// 3. Pegamos a referência do banco de dados (O nosso "Arquivo de Aço")
+// 3. Pegamos a referência do banco de dados
 const db = admin.firestore();
 
 // class FirebaseTreinoRepository
 export class FirebaseTreinoRepository implements ITreinoRepository {
-  // O Padrão Singleton que já tínhamos feito
+  // Padrão Singleton
   private static instance: FirebaseTreinoRepository;
 
   private constructor() {
@@ -163,7 +162,78 @@ export class FirebaseTreinoRepository implements ITreinoRepository {
     return execucoes[0] || null;
   }
 
-  // Função temporária para popular o banco!
+  async salvarExecucao(execucao: IExecucaoTreino): Promise<void> {
+    console.log(
+      `💾 Salvando treino (Ficha ID: ${execucao.treinoId}) do usuário ${execucao.usuarioId}...`,
+    );
+
+    // 1. Preparamos a "pasta" no Firebase.
+    // Se o objeto já tem um ID, usamos ele. Se não tem, o .doc() vazio manda o Google gerar um ID único na hora.
+    const docRef = execucao.id
+      ? db.collection("execucoes").doc(execucao.id)
+      : db.collection("execucoes").doc();
+
+    // 2. Garantimos que o ID gerado pelo Google fique salvo dentro do próprio JSON também
+    const dadosParaSalvar = {
+      ...execucao,
+      id: docRef.id,
+    };
+
+    // 3. Salva definitivamente no banco de dados
+    await docRef.set(dadosParaSalvar);
+
+    console.log(`✅ Treino salvo com sucesso! ID da execução: ${docRef.id}`);
+  }
+
+  async buscarFichasPorUsuario(usuarioId: string): Promise<IFichaTreino[]> {
+    console.log(`🔍 Buscando todas as fichas do usuário ${usuarioId}...`);
+    const snapshot = await db
+      .collection("fichas")
+      .where("usuarioId", "==", usuarioId)
+      .get();
+
+    return snapshot.docs.map((doc) => doc.data() as IFichaTreino);
+  }
+
+  async deletarFicha(fichaId: string): Promise<void> {
+    console.log(`🗑️ Deletando a ficha ${fichaId}...`);
+    await db.collection("fichas").doc(fichaId).delete();
+  }
+
+  async atualizarExecucao(
+    execucaoId: string,
+    exerciciosAtualizados: any[],
+  ): Promise<void> {
+    console.log(`✏️ Atualizando pesos do treino ${execucaoId}...`);
+
+    // O comando .update() do Firebase altera apenas o campo que você mandar!
+    await db.collection("execucoes").doc(execucaoId).update({
+      exerciciosExecutados: exerciciosAtualizados,
+    });
+  }
+
+  async salvarFichaTemplate(ficha: IFichaTreino): Promise<void> {
+    console.log(
+      `📝 Cadastrando a Ficha ${ficha.tipo} para o usuário ${ficha.usuarioId}...`,
+    );
+
+    // Se o Controller mandou um ID (o que ele faz), nós usamos. Senão, geramos um novo.
+    const docRef = ficha.id
+      ? db.collection("fichas").doc(ficha.id)
+      : db.collection("fichas").doc();
+
+    const dadosParaSalvar = {
+      ...ficha,
+      id: docRef.id,
+    };
+
+    // Usamos o set() para fazer o Upsert (Cria se não existir, atualiza se existir)
+    await docRef.set(dadosParaSalvar);
+
+    console.log(`✅ Ficha ${ficha.tipo} salva com sucesso no banco!`);
+  }
+
+  // Função temporária para popular o banco
   async popularBancoDeTeste(): Promise<void> {
     const usuarioId = "GUILHERME3104";
 
