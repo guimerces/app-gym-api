@@ -28,6 +28,32 @@ export class TreinoController {
           ultimaExecucao.treinoId,
         );
 
+        if (!treinoAnterior) {
+          console.log(
+            "⚠️ Alerta: Histórico aponta para uma ficha apagada. Recomeçando do A.",
+          );
+          // Como não achamos a ficha anterior para saber qual era, recomeçamos o ciclo do zero
+          const fichaPadrao = await this.treinoRepository.buscarFichaTemplate(
+            usuarioId,
+            "A",
+          );
+
+          // Precisamos desse if extra porque a buscarFichaTemplate também pode retornar nulo!
+          if (!fichaPadrao)
+            throw new Error("Ficha A não configurada no banco!");
+
+          return {
+            sugestao: "A",
+            mensagem:
+              "Sua ficha anterior foi alterada. Vamos recomeçar pelo Treino A!",
+            exercicios: fichaPadrao.exercicios.map((ex) => ({
+              ...ex,
+              cargaSugerida: 10,
+              dicaDoCoach: "Recomeçando ciclo.",
+            })),
+          };
+        }
+
         // 1. Pegamos o que veio do banco
         const tipoDoTreinoNoBD = treinoAnterior.tipo;
 

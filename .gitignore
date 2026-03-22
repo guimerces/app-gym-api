@@ -22,3 +22,6 @@ yarn-debug.log*
 # O Mac e o Windows geram arquivos invisíveis nas pastas. Não precisamos deles no projeto.
 .DS_Store
 Thumbs.db
+
+# Chave de acesso do Firebase
+firebase-key.json

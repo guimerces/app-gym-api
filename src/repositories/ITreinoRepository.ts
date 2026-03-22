@@ -42,7 +42,7 @@ export interface ITreinoRepository {
   // ------------------------------------------------------------------------
 
   // Busca uma ficha específica pelo ID dela (Ex: "XYZ-123")
-  buscarFichaPorId(treinoId: string): Promise<IFichaTreino>;
+  buscarFichaPorId(treinoId: string): Promise<IFichaTreino | null>;
 
   // Busca a Ficha (Template) do treino específico do usuário (Ex: O treino "A" do João)
   buscarFichaTemplate(
