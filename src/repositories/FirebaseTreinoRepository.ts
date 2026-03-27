@@ -6,19 +6,25 @@ import {
   IFichaTreino,
 } from "./ITreinoRepository";
 import * as admin from "firebase-admin";
+import * as dotenv from "dotenv";
 
-// busca a chave do BD
-const serviceAccount = require("../../firebase-key.json");
+dotenv.config(); // Carrega as variáveis do ambiente
 
-// 2. Iniciamos a conexão com os servidores do Google - Objeto admin abstrai toda complexidade do login
-// O if garante que ele não tente conectar duas vezes e dê erro
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+    credential: admin.credential.cert({
+      // Colocamos o "as string" para garantir ao TS que a variável vai existir
+      projectId: process.env.FIREBASE_PROJECT_ID as string,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL as string,
+      // Usamos um fallback (|| "") caso venha vazio, para o .replace não quebrar
+      privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(
+        /\\n/g,
+        "\n",
+      ),
+    }),
   });
 }
 
-// 3. Pegamos a referência do banco de dados
 const db = admin.firestore();
 
 // class FirebaseTreinoRepository

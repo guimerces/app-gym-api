@@ -8,7 +8,7 @@ app.use(express.json()); // Para o Express entender JSON
 // Avisamos ao Express para usar as nossas rotas de treino
 app.use(treinoRoutes);
 
-const PORTA = 3000;
-app.listen(PORTA, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORTA}`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor voando na porta ${PORT}`);
 });
